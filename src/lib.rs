@@ -1,3 +1,4 @@
+use events::NearEvent;
 use external::{nft_contract, paras_marketplace};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
@@ -8,12 +9,15 @@ use near_sdk::{
     assert_one_yocto, env, is_promise_success, near_bindgen, require, AccountId, Balance,
     BorshStorageKey, Gas, PanicOnDefault, Promise,
 };
+use serde::Deserialize;
+use events::{LogDeleteSnipe, LogSnipe};
 
 // TODO calculate gas crosscontract calls
 const GAS_FOR_BUY_TOKEN: Gas = Gas(30_000_000_000_000);
 const GAS_FOR_RESOLVE_BUY: Gas = Gas(30_000_000_000_000);
 const GAS_FOR_NFT_TRANSFER: Gas = Gas(30_000_000_000_000);
 
+pub mod events;
 pub mod external;
 
 pub type SnipeId = u64;
@@ -25,7 +29,7 @@ pub enum NftMarketplace {
     Fewfar,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 pub enum SnipeStatus {
     Waiting,
     Sniping,
@@ -121,7 +125,7 @@ impl Contract {
             snipe_id: id.clone(),
             account_id: account_id.clone(),
             contract_id: contract_id.clone(),
-            token_id,
+            token_id: token_id.clone(),
             deposit: attached_deposit,
             status: SnipeStatus::Waiting,
         };
@@ -139,6 +143,15 @@ impl Contract {
         snipes_per_account_id.insert(&id);
         self.snipes_by_account_id
             .insert(&account_id, &snipes_per_account_id);
+
+        NearEvent::log_snipe(LogSnipe {
+            snipe_id: id,
+            account_id: account_id.to_string(),
+            contract_id: contract_id.to_string(),
+            token_id,
+            deposit: attached_deposit,
+            status: SnipeStatus::Waiting,
+        })
     }
 
     #[payable]
@@ -169,8 +182,13 @@ impl Contract {
             .insert(&account_id, &snipes_per_account_id);
 
         if snipe.deposit > 0 {
-            self.internal_transfer_near(account_id, snipe.deposit);
+            self.internal_transfer_near(account_id.clone(), snipe.deposit);
         }
+
+        NearEvent::delete_snipe(LogDeleteSnipe {
+            snipe_id,
+            account_id: account_id.to_string(),
+        });
     }
 
     #[payable]
