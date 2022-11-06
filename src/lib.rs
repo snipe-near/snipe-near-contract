@@ -3,8 +3,8 @@ use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::json_types::U128;
 use near_sdk::serde::Serialize;
 use near_sdk::{
-    assert_one_yocto, env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault,
-    Promise,
+    assert_one_yocto, env, near_bindgen, require, AccountId, Balance, BorshStorageKey,
+    PanicOnDefault, Promise,
 };
 
 pub type SnipeId = u64;
@@ -84,7 +84,7 @@ impl Contract {
 
     #[payable]
     pub fn snipe(&mut self, contract_id: AccountId, token_id: Option<TokenId>) {
-        assert_one_yocto();
+        self.assert_more_than_one_yocto();
 
         let account_id = env::predecessor_account_id();
         let attached_deposit = env::attached_deposit();
@@ -156,5 +156,12 @@ impl Contract {
             ));
         }
         Promise::new(account_id).transfer(amount);
+    }
+
+    pub fn assert_more_than_one_yocto(&self) {
+        require!(
+            env::attached_deposit() > 1,
+            "errors.attached deposit should be more than 1 yoctoNEAR"
+        )
     }
 }
