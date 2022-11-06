@@ -83,7 +83,7 @@ impl Contract {
     // payable
 
     #[payable]
-    pub fn snipe_token(&mut self, contract_id: AccountId, token_id: Option<TokenId>) {
+    pub fn snipe(&mut self, contract_id: AccountId, token_id: Option<TokenId>) {
         assert_one_yocto();
 
         let account_id = env::predecessor_account_id();
