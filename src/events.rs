@@ -26,6 +26,7 @@ pub struct SnipeNearEvent {
 pub enum SnipeNearEventKind {
     Snipe(LogSnipe),
     DeleteSnipe(LogDeleteSnipe),
+    BuyToken(LogBuyToken)
 }
 
 #[skip_serializing_none]
@@ -44,6 +45,16 @@ pub struct LogSnipe {
 pub struct LogDeleteSnipe {
     pub snipe_id: u64,
     pub account_id: String,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LogBuyToken {
+    pub marketplace_contract_id: String,
+    pub price: u128,
+    pub snipe_id: u64,
+    pub token_id: String,
+    pub status: SnipeStatus,
 }
 
 impl Display for NearEvent {
@@ -82,6 +93,10 @@ impl NearEvent {
         NearEvent::new_v1(SnipeNearEventKind::DeleteSnipe(data))
     }
 
+    pub fn buy_token(data: LogBuyToken) -> Self {
+        NearEvent::new_v1(SnipeNearEventKind::BuyToken(data))
+    }
+
     // logs
 
     pub fn log_snipe(data: LogSnipe) {
@@ -90,5 +105,9 @@ impl NearEvent {
 
     pub fn log_delete_snipe(data: LogDeleteSnipe) {
         NearEvent::delete_snipe(data).log();
+    }
+
+    pub fn log_buy_token(data: LogBuyToken) {
+        NearEvent::buy_token(data).log();
     }
 }

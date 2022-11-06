@@ -1,4 +1,4 @@
-use events::NearEvent;
+use events::{LogBuyToken, LogDeleteSnipe, LogSnipe, NearEvent};
 use external::{nft_contract, paras_marketplace};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
@@ -10,7 +10,6 @@ use near_sdk::{
     BorshStorageKey, Gas, PanicOnDefault, Promise,
 };
 use serde::Deserialize;
-use events::{LogDeleteSnipe, LogSnipe};
 
 // TODO calculate gas crosscontract calls
 const GAS_FOR_BUY_TOKEN: Gas = Gas(30_000_000_000_000);
@@ -241,7 +240,13 @@ impl Contract {
     // private methods
 
     #[private]
-    pub fn resolve_buy(&mut self, snipe_id: SnipeId, price: U128, token_id: TokenId) -> Promise {
+    pub fn resolve_buy(
+        &mut self,
+        marketplace_contract_id: AccountId,
+        snipe_id: SnipeId,
+        price: U128,
+        token_id: TokenId,
+    ) -> Promise {
         let mut snipe = self
             .snipe_by_id
             .get(&snipe_id)
@@ -250,6 +255,14 @@ impl Contract {
         if !is_promise_success() {
             snipe.status = SnipeStatus::Failed;
             self.snipe_by_id.insert(&snipe_id, &snipe);
+
+            NearEvent::log_buy_token(LogBuyToken {
+                marketplace_contract_id: marketplace_contract_id.to_string(),
+                price: price.0,
+                snipe_id,
+                token_id,
+                status: SnipeStatus::Failed,
+            });
 
             panic_str("errors.buy token failed")
         }
@@ -261,6 +274,14 @@ impl Contract {
 
         snipe.status = SnipeStatus::Success;
         self.snipe_by_id.insert(&snipe_id, &snipe);
+
+        NearEvent::log_buy_token(LogBuyToken {
+            marketplace_contract_id: marketplace_contract_id.to_string(),
+            price: price.0,
+            snipe_id,
+            token_id: token_id.clone(),
+            status: SnipeStatus::Success,
+        });
 
         nft_contract::ext(snipe.contract_id)
             .with_attached_deposit(1)
@@ -279,7 +300,7 @@ impl Contract {
     ) -> Promise {
         let nft_contract_id = snipe.contract_id.clone();
 
-        paras_marketplace::ext(marketplace_contract_id)
+        paras_marketplace::ext(marketplace_contract_id.clone())
             .with_static_gas(GAS_FOR_BUY_TOKEN)
             .with_attached_deposit(price.0)
             .buy(
@@ -291,7 +312,7 @@ impl Contract {
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_FOR_RESOLVE_BUY)
-                    .resolve_buy(snipe.snipe_id, price, token_id),
+                    .resolve_buy(marketplace_contract_id, snipe.snipe_id, price, token_id),
             )
     }
 

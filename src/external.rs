@@ -1,10 +1,5 @@
-use crate::{AccountId, TokenId, SnipeId};
-use near_sdk::{ext_contract, json_types::U128, Balance};
-
-#[ext_contract(this_contract)]
-trait Callbacks {
-  fn resolve_buy(snipe_id: SnipeId, price: Balance, token_id: TokenId);
-}
+use crate::{AccountId, TokenId};
+use near_sdk::{ext_contract, json_types::U128};
 
 #[ext_contract(paras_marketplace)]
 trait ParasMarketplace {
