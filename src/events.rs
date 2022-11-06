@@ -36,7 +36,7 @@ pub struct LogSnipe {
     pub account_id: String,
     pub contract_id: String,
     pub token_id: Option<String>,
-    pub deposit: u128,
+    pub deposit: String,
     pub status: SnipeStatus,
 }
 
@@ -51,7 +51,7 @@ pub struct LogDeleteSnipe {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogBuyToken {
     pub marketplace_contract_id: String,
-    pub price: u128,
+    pub price: String,
     pub snipe_id: u64,
     pub token_id: String,
     pub status: SnipeStatus,

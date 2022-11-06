@@ -148,7 +148,7 @@ impl Contract {
             account_id: account_id.to_string(),
             contract_id: contract_id.to_string(),
             token_id,
-            deposit: attached_deposit,
+            deposit: attached_deposit.to_string(),
             status: SnipeStatus::Waiting,
         })
     }
@@ -258,7 +258,7 @@ impl Contract {
 
             NearEvent::log_buy_token(LogBuyToken {
                 marketplace_contract_id: marketplace_contract_id.to_string(),
-                price: price.0,
+                price: price.0.to_string(),
                 snipe_id,
                 token_id,
                 status: SnipeStatus::Failed,
@@ -277,7 +277,7 @@ impl Contract {
 
         NearEvent::log_buy_token(LogBuyToken {
             marketplace_contract_id: marketplace_contract_id.to_string(),
-            price: price.0,
+            price: price.0.to_string(),
             snipe_id,
             token_id: token_id.clone(),
             status: SnipeStatus::Success,
