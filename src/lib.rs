@@ -1,6 +1,7 @@
 use external::{nft_contract, paras_marketplace};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
+use near_sdk::env::panic_str;
 use near_sdk::json_types::U128;
 use near_sdk::serde::Serialize;
 use near_sdk::{
@@ -25,12 +26,21 @@ pub enum NftMarketplace {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
+pub enum SnipeStatus {
+    Waiting,
+    Sniping,
+    Success,
+    Failed,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
 pub struct Snipe {
     snipe_id: SnipeId,
     account_id: AccountId,
     contract_id: AccountId,
     token_id: Option<TokenId>,
     deposit: Balance,
+    status: SnipeStatus,
 }
 
 #[near_bindgen]
@@ -49,7 +59,6 @@ enum StorageKey {
 }
 
 // TODO
-// - method buy token by marketplace contract
 // - calculate storage fee & buy fee
 
 #[near_bindgen]
@@ -114,6 +123,7 @@ impl Contract {
             contract_id: contract_id.clone(),
             token_id,
             deposit: attached_deposit,
+            status: SnipeStatus::Waiting,
         };
         self.snipe_by_id.insert(&id, &snipe);
 
@@ -131,7 +141,6 @@ impl Contract {
             .insert(&account_id, &snipes_per_account_id);
     }
 
-    // TODO makesure that snipe is unlocked
     #[payable]
     pub fn delete_snipe(&mut self, snipe_id: SnipeId) {
         assert_one_yocto();
@@ -145,6 +154,10 @@ impl Contract {
             snipe.account_id, account_id,
             "errors.only owner can delete snipe"
         );
+
+        if !matches!(snipe.status, SnipeStatus::Waiting) {
+            panic_str("errors.snipe is not in waiting status");
+        }
 
         self.snipe_by_id.remove(&snipe_id);
         let mut snipes_per_account_id = self
@@ -160,7 +173,6 @@ impl Contract {
         }
     }
 
-    //TODO lock snipe when buy token process to prevent user from deleting snipe
     #[payable]
     pub fn buy_token(
         &mut self,
@@ -175,23 +187,35 @@ impl Contract {
             .snipe_by_id
             .get(&snipe_id)
             .expect("errors.snipe not found");
-        if snipe.token_id.is_none() {
-            snipe.token_id = Some(token_id.expect("errors.token_id is required"));
+        if !matches!(snipe.status, SnipeStatus::Waiting) {
+            panic_str("errors.snipe is not in waiting status");
+        }
+        snipe.status = SnipeStatus::Sniping;
+        self.snipe_by_id.insert(&snipe_id, &snipe);
+
+        let target_token_id: TokenId;
+        if snipe.token_id.is_some() {
+            target_token_id = snipe.token_id.as_ref().unwrap().clone();
+        } else {
+            target_token_id = token_id.expect("errors.token_id is required");
         }
 
         if price.0 > snipe.deposit {
-            panic!("errors.price is more than snipe deposit")
+            panic_str("errors.price is more than snipe deposit")
         }
 
         let nft_marketplace = self
             .get_nft_marketplace_by_contract(marketplace_contract_id.clone())
             .expect("errros.marketplace not found");
         match nft_marketplace {
-            NftMarketplace::Paras => {
-                self.internal_buy_from_paras(marketplace_contract_id, price, &snipe)
-            }
+            NftMarketplace::Paras => self.internal_buy_from_paras(
+                marketplace_contract_id,
+                price,
+                &snipe,
+                target_token_id,
+            ),
             _ => {
-                panic!("errors.marketplace not supported");
+                panic_str("errors.marketplace not supported");
             }
         }
     }
@@ -199,24 +223,31 @@ impl Contract {
     // private methods
 
     #[private]
-    pub fn resolve_buy(&mut self, snipe_id: SnipeId, price: U128) -> Promise {
-        if !is_promise_success() {
-            panic!("errors.buy token failed")
-        }
-        let snipe = self
+    pub fn resolve_buy(&mut self, snipe_id: SnipeId, price: U128, token_id: TokenId) -> Promise {
+        let mut snipe = self
             .snipe_by_id
             .get(&snipe_id)
             .expect("errors.snipe not found");
+
+        if !is_promise_success() {
+            snipe.status = SnipeStatus::Failed;
+            self.snipe_by_id.insert(&snipe_id, &snipe);
+
+            panic_str("errors.buy token failed")
+        }
 
         let refund_deposit = snipe.deposit - price.0;
         if refund_deposit > 0 {
             self.internal_transfer_near(snipe.account_id.clone(), refund_deposit);
         }
 
+        snipe.status = SnipeStatus::Success;
+        self.snipe_by_id.insert(&snipe_id, &snipe);
+
         nft_contract::ext(snipe.contract_id)
             .with_attached_deposit(1)
             .with_static_gas(GAS_FOR_NFT_TRANSFER)
-            .nft_transfer(snipe.account_id, snipe.token_id.unwrap(), None, None)
+            .nft_transfer(snipe.account_id, token_id, None, None)
     }
 
     // private functions
@@ -226,18 +257,23 @@ impl Contract {
         marketplace_contract_id: AccountId,
         price: U128,
         snipe: &Snipe,
+        token_id: TokenId,
     ) -> Promise {
-        let token_id = snipe.token_id.clone().unwrap();
         let nft_contract_id = snipe.contract_id.clone();
 
         paras_marketplace::ext(marketplace_contract_id)
             .with_static_gas(GAS_FOR_BUY_TOKEN)
             .with_attached_deposit(price.0)
-            .buy(nft_contract_id, token_id, None, Some(U128(price.0.clone())))
+            .buy(
+                nft_contract_id,
+                token_id.clone(),
+                None,
+                Some(U128(price.0.clone())),
+            )
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_FOR_RESOLVE_BUY)
-                    .resolve_buy(snipe.snipe_id, price),
+                    .resolve_buy(snipe.snipe_id, price, token_id),
             )
     }
 
