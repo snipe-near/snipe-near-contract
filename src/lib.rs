@@ -9,8 +9,8 @@ use near_sdk::{
 };
 
 // TODO calculate gas crosscontract calls
-const GAS_FOR_BUY_TOKEN: Gas = Gas(300_000_000_000_000);
-const GAS_FOR_RESOLVE_BUY: Gas = Gas(300_000_000_000_000);
+const GAS_FOR_BUY_TOKEN: Gas = Gas(30_000_000_000_000);
+const GAS_FOR_RESOLVE_BUY: Gas = Gas(30_000_000_000_000);
 
 pub mod external;
 
@@ -164,7 +164,7 @@ impl Contract {
     pub fn buy_token(
         &mut self,
         marketplace_contract_id: AccountId,
-        price: Balance,
+        price: U128,
         snipe_id: SnipeId,
         token_id: Option<TokenId>,
     ) -> Promise {
@@ -174,12 +174,11 @@ impl Contract {
             .snipe_by_id
             .get(&snipe_id)
             .expect("errors.snipe not found");
-        if snipe.token_id.is_some() {
-            panic!("errors.token id is already specified by snipe owner")
+        if snipe.token_id.is_none() {
+            snipe.token_id = Some(token_id.expect("errors.token_id is required"));
         }
-        snipe.token_id = token_id;
 
-        if price > snipe.deposit {
+        if price.0 > snipe.deposit {
             panic!("errors.price is more than snipe deposit")
         }
 
@@ -199,7 +198,7 @@ impl Contract {
     // private methods
 
     #[private]
-    pub fn resolve_buy(&mut self, snipe_id: SnipeId, price: Balance) {
+    pub fn resolve_buy(&mut self, snipe_id: SnipeId, price: U128) {
         if !is_promise_success() {
             panic!("errors.buy token failed")
         }
@@ -208,7 +207,7 @@ impl Contract {
             .get(&snipe_id)
             .expect("errors.snipe not found");
 
-        let refund_deposit = snipe.deposit - price;
+        let refund_deposit = snipe.deposit - price.0;
         if refund_deposit > 0 {
             self.internal_transfer_near(snipe.account_id, refund_deposit);
         }
@@ -219,7 +218,7 @@ impl Contract {
     fn internal_buy_from_paras(
         &mut self,
         marketplace_contract_id: AccountId,
-        price: Balance,
+        price: U128,
         snipe: &Snipe,
     ) -> Promise {
         let token_id = snipe.token_id.clone().unwrap();
@@ -227,8 +226,8 @@ impl Contract {
 
         paras_marketplace::ext(marketplace_contract_id)
             .with_static_gas(GAS_FOR_BUY_TOKEN)
-            .with_attached_deposit(price)
-            .buy(nft_contract_id, token_id, None, Some(U128(price.clone())))
+            .with_attached_deposit(price.0)
+            .buy(nft_contract_id, token_id, None, Some(U128(price.0.clone())))
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_FOR_RESOLVE_BUY)
