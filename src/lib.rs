@@ -34,6 +34,10 @@ enum StorageKey {
     SnipesPerAccountId { account_id: AccountId },
 }
 
+// TODO
+// - method buy token by marketplace contract
+// - calculate storage fee & buy fee
+
 #[near_bindgen]
 impl Contract {
     #[init]
