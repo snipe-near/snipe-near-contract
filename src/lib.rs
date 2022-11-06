@@ -1,12 +1,16 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::json_types::U128;
-use near_sdk::{assert_one_yocto, env, near_bindgen, AccountId, Balance, BorshStorageKey, Promise};
+use near_sdk::serde::Serialize;
+use near_sdk::{
+    assert_one_yocto, env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault,
+    Promise,
+};
 
 pub type SnipeId = u64;
 pub type TokenId = String;
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
 pub struct Snipe {
     snipe_id: SnipeId,
     account_id: AccountId,
@@ -16,7 +20,7 @@ pub struct Snipe {
 }
 
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     owner_id: AccountId,
     snipe_by_id: UnorderedMap<SnipeId, Snipe>,
@@ -71,7 +75,9 @@ impl Contract {
     }
 
     pub fn snipe_by_id(&self, snipe_id: SnipeId) -> Snipe {
-        self.snipe_by_id.get(&snipe_id).expect("errors.snipe not found")
+        self.snipe_by_id
+            .get(&snipe_id)
+            .expect("errors.snipe not found")
     }
 
     // payable
@@ -134,7 +140,9 @@ impl Contract {
         self.snipes_by_account_id
             .insert(&account_id, &snipes_per_account_id);
 
-        self.internal_transfer_near(account_id, snipe.price);
+        if snipe.price > 0 {
+            self.internal_transfer_near(account_id, snipe.price);
+        }
     }
 
     // private functions
