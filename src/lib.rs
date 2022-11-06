@@ -90,18 +90,14 @@ impl Contract {
         let attached_deposit = env::attached_deposit();
 
         let id = self.snipes_by_account_id.len() + 1;
-        self.snipe_by_id
-            .insert(
-                &id,
-                &Snipe {
-                    snipe_id: id,
-                    account_id: account_id.clone(),
-                    contract_id,
-                    token_id,
-                    price: attached_deposit,
-                },
-            )
-            .expect("errors.failed to insert snipe");
+        let snipe = Snipe {
+            snipe_id: id.clone(),
+            account_id: account_id.clone(),
+            contract_id: contract_id.clone(),
+            token_id,
+            price: attached_deposit,
+        };
+        self.snipe_by_id.insert(&id, &snipe);
 
         let mut snipes_per_account_id =
             self.snipes_by_account_id
