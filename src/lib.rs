@@ -1,4 +1,4 @@
-use external::paras_marketplace;
+use external::{nft_contract, paras_marketplace};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::json_types::U128;
@@ -11,6 +11,7 @@ use near_sdk::{
 // TODO calculate gas crosscontract calls
 const GAS_FOR_BUY_TOKEN: Gas = Gas(30_000_000_000_000);
 const GAS_FOR_RESOLVE_BUY: Gas = Gas(30_000_000_000_000);
+const GAS_FOR_NFT_TRANSFER: Gas = Gas(30_000_000_000_000);
 
 pub mod external;
 
@@ -198,7 +199,7 @@ impl Contract {
     // private methods
 
     #[private]
-    pub fn resolve_buy(&mut self, snipe_id: SnipeId, price: U128) {
+    pub fn resolve_buy(&mut self, snipe_id: SnipeId, price: U128) -> Promise {
         if !is_promise_success() {
             panic!("errors.buy token failed")
         }
@@ -209,8 +210,13 @@ impl Contract {
 
         let refund_deposit = snipe.deposit - price.0;
         if refund_deposit > 0 {
-            self.internal_transfer_near(snipe.account_id, refund_deposit);
+            self.internal_transfer_near(snipe.account_id.clone(), refund_deposit);
         }
+
+        nft_contract::ext(snipe.contract_id)
+            .with_attached_deposit(1)
+            .with_static_gas(GAS_FOR_NFT_TRANSFER)
+            .nft_transfer(snipe.account_id, snipe.token_id.unwrap(), None, None)
     }
 
     // private functions

@@ -15,3 +15,14 @@ trait ParasMarketplace {
         price: Option<U128>,
     );
 }
+
+#[ext_contract(nft_contract)]
+trait NftContract {
+    fn nft_transfer(
+        receiver_id: AccountId,
+        token_id: TokenId,
+        approval_id: Option<u64>,
+        memo: Option<String>,
+    );
+}
+
