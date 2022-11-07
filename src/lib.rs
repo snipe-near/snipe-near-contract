@@ -184,7 +184,7 @@ impl Contract {
             self.internal_transfer_near(account_id.clone(), snipe.deposit);
         }
 
-        NearEvent::delete_snipe(LogDeleteSnipe {
+        NearEvent::log_delete_snipe(LogDeleteSnipe {
             snipe_id,
             account_id: account_id.to_string(),
         });
