@@ -38,6 +38,7 @@ pub struct LogSnipe {
     pub token_id: Option<String>,
     pub deposit: String,
     pub status: SnipeStatus,
+    pub memo: Option<String>
 }
 
 #[skip_serializing_none]

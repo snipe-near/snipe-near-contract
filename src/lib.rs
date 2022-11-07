@@ -114,7 +114,7 @@ impl Contract {
     // payable
 
     #[payable]
-    pub fn snipe(&mut self, contract_id: AccountId, token_id: Option<TokenId>) {
+    pub fn snipe(&mut self, contract_id: AccountId, token_id: Option<TokenId>, memo: Option<String>) {
         self.assert_more_than_one_yocto();
 
         let account_id = env::predecessor_account_id();
@@ -151,6 +151,7 @@ impl Contract {
             token_id,
             deposit: attached_deposit.to_string(),
             status: SnipeStatus::Waiting,
+            memo
         })
     }
 
