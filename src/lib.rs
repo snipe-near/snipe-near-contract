@@ -34,6 +34,7 @@ pub enum SnipeStatus {
     Sniping,
     Success,
     Failed,
+    Deleted
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
@@ -158,7 +159,7 @@ impl Contract {
         assert_one_yocto();
 
         let account_id = env::predecessor_account_id();
-        let snipe = self
+        let mut snipe = self
             .snipe_by_id
             .get(&snipe_id)
             .expect("errors.snipe not found");
@@ -171,14 +172,8 @@ impl Contract {
             panic_str("errors.snipe is not in waiting status");
         }
 
-        self.snipe_by_id.remove(&snipe_id);
-        let mut snipes_per_account_id = self
-            .snipes_by_account_id
-            .get(&account_id)
-            .expect("errors.snipes snipes_per_account_id not found");
-        snipes_per_account_id.remove(&snipe_id);
-        self.snipes_by_account_id
-            .insert(&account_id, &snipes_per_account_id);
+        snipe.status = SnipeStatus::Deleted;
+        self.snipe_by_id.insert(&snipe_id, &snipe);
 
         if snipe.deposit > 0 {
             self.internal_transfer_near(account_id.clone(), snipe.deposit);
