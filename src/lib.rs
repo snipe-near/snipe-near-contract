@@ -34,7 +34,7 @@ pub enum SnipeStatus {
     Sniping,
     Success,
     Failed,
-    Deleted
+    Deleted,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
@@ -114,7 +114,12 @@ impl Contract {
     // payable
 
     #[payable]
-    pub fn snipe(&mut self, contract_id: AccountId, token_id: Option<TokenId>, memo: Option<String>) {
+    pub fn snipe(
+        &mut self,
+        contract_id: AccountId,
+        token_id: Option<TokenId>,
+        memo: Option<String>,
+    ) {
         self.assert_more_than_one_yocto();
 
         let account_id = env::predecessor_account_id();
@@ -151,7 +156,7 @@ impl Contract {
             token_id,
             deposit: attached_deposit.to_string(),
             status: SnipeStatus::Waiting,
-            memo
+            memo,
         })
     }
 
@@ -256,6 +261,7 @@ impl Contract {
                 snipe_id,
                 token_id,
                 status: SnipeStatus::Failed,
+                account_id: snipe.account_id.to_string(),
             });
 
             panic_str("errors.buy token failed")
@@ -275,6 +281,7 @@ impl Contract {
             snipe_id,
             token_id: token_id.clone(),
             status: SnipeStatus::Success,
+            account_id: snipe.account_id.to_string(),
         });
 
         nft_contract::ext(snipe.contract_id)
