@@ -120,7 +120,7 @@ impl Contract {
         let account_id = env::predecessor_account_id();
         let attached_deposit = env::attached_deposit();
 
-        let id = self.snipes_by_account_id.len() + 1;
+        let id = self.snipe_by_id.len() + 1;
         let snipe = Snipe {
             snipe_id: id.clone(),
             account_id: account_id.clone(),
@@ -232,8 +232,6 @@ impl Contract {
             }
         }
     }
-
-    // private methods
 
     #[private]
     pub fn resolve_buy(
