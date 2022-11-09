@@ -62,9 +62,6 @@ enum StorageKey {
     SnipesPerAccountId { account_id: AccountId },
 }
 
-// TODO
-// - calculate storage fee & buy fee
-
 #[near_bindgen]
 impl Contract {
     #[init]
