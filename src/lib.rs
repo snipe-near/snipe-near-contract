@@ -1,5 +1,5 @@
 use events::{LogBuyToken, LogDeleteSnipe, LogSnipe, NearEvent};
-use external::{nft_contract, paras_marketplace};
+use external::{nft_contract, paras_marketplace, mintbase_marketplace};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::env::panic_str;
@@ -12,7 +12,7 @@ use near_sdk::{
 use serde::Deserialize;
 
 // TODO calculate gas crosscontract calls
-const GAS_FOR_BUY_TOKEN: Gas = Gas(30_000_000_000_000);
+const GAS_FOR_BUY_TOKEN: Gas = Gas(40_000_000_000_000);
 const GAS_FOR_RESOLVE_BUY: Gas = Gas(30_000_000_000_000);
 const GAS_FOR_NFT_TRANSFER: Gas = Gas(30_000_000_000_000);
 
@@ -229,6 +229,12 @@ impl Contract {
                 &snipe,
                 target_token_id,
             ),
+            NftMarketplace::Mintbase => self.internal_buy_from_mintbase(
+                marketplace_contract_id,
+                price,
+                &snipe,
+                target_token_id,
+            ),
             _ => {
                 panic_str("errors.marketplace not supported");
             }
@@ -314,6 +320,29 @@ impl Contract {
             )
     }
 
+    fn internal_buy_from_mintbase(
+        &mut self,
+        marketplace_contract_id: AccountId,
+        price: U128,
+        snipe: &Snipe,
+        token_id: TokenId,
+    ) -> Promise {
+        let nft_contract_id = snipe.contract_id.clone();
+
+        mintbase_marketplace::ext(marketplace_contract_id.clone())
+            .with_static_gas(GAS_FOR_BUY_TOKEN)
+            .with_attached_deposit(price.0)
+            .buy(
+                nft_contract_id,
+                token_id.clone(),
+            )
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_FOR_RESOLVE_BUY)
+                    .resolve_buy(marketplace_contract_id, snipe.snipe_id, price, token_id),
+            )
+    }
+
     fn internal_transfer_near(&self, account_id: AccountId, amount: Balance) {
         let balance = env::account_balance();
         if balance < amount {
@@ -341,13 +370,14 @@ impl Contract {
     }
 
     fn get_nft_marketplace_by_contract(
-        // TODO add more marketplaces & specify by env (testnet or mainnet)
         &self,
         marketplace_contract_id: AccountId,
     ) -> Option<NftMarketplace> {
         match marketplace_contract_id.as_str() {
             "paras-marketplace-v1.testnet" => Some(NftMarketplace::Paras),
             "marketplace.paras.mainnet" => Some(NftMarketplace::Paras),
+            "market-v2-beta.mintspace2.testnet" => Some(NftMarketplace::Mintbase),
+            "market.mintbase1.near" => Some(NftMarketplace::Mintbase),
             _ => None,
         }
     }

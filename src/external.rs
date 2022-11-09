@@ -11,6 +11,14 @@ trait ParasMarketplace {
     );
 }
 
+#[ext_contract(mintbase_marketplace)]
+trait MintbaseMarketplace {
+    fn buy(
+        nft_contract_id: AccountId,
+        token_id: TokenId,
+    );
+}
+
 #[ext_contract(nft_contract)]
 trait NftContract {
     fn nft_transfer(
