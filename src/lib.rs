@@ -11,8 +11,7 @@ use near_sdk::{
 };
 use serde::Deserialize;
 
-// TODO calculate gas crosscontract calls
-const GAS_FOR_BUY_TOKEN: Gas = Gas(40_000_000_000_000);
+const GAS_FOR_BUY_TOKEN: Gas = Gas(200_000_000_000_000);
 const GAS_FOR_RESOLVE_BUY: Gas = Gas(30_000_000_000_000);
 const GAS_FOR_NFT_TRANSFER: Gas = Gas(30_000_000_000_000);
 
