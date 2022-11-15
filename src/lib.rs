@@ -194,6 +194,7 @@ impl Contract {
         price: U128,
         snipe_id: SnipeId,
         token_id: Option<TokenId>,
+        marketplace: String
     ) -> Promise {
         self.assert_owner();
 
@@ -219,7 +220,7 @@ impl Contract {
         }
 
         let nft_marketplace = self
-            .get_nft_marketplace_by_contract(marketplace_contract_id.clone())
+            .get_nft_marketplace_by_marketplace_value(marketplace.clone())
             .expect("errros.marketplace not found");
         match nft_marketplace {
             NftMarketplace::Paras => self.internal_buy_from_paras(
@@ -227,12 +228,14 @@ impl Contract {
                 price,
                 &snipe,
                 target_token_id,
+                marketplace.clone()
             ),
             NftMarketplace::Mintbase => self.internal_buy_from_mintbase(
                 marketplace_contract_id,
                 price,
                 &snipe,
                 target_token_id,
+                marketplace
             ),
             _ => {
                 panic_str("errors.marketplace not supported");
@@ -247,6 +250,7 @@ impl Contract {
         snipe_id: SnipeId,
         price: U128,
         token_id: TokenId,
+        marketplace: String 
     ) -> Promise {
         let mut snipe = self
             .snipe_by_id
@@ -264,6 +268,7 @@ impl Contract {
                 token_id,
                 status: SnipeStatus::Failed,
                 account_id: snipe.account_id.to_string(),
+                marketplace
             });
 
             panic_str("errors.buy token failed")
@@ -284,6 +289,7 @@ impl Contract {
             token_id: token_id.clone(),
             status: SnipeStatus::Success,
             account_id: snipe.account_id.to_string(),
+            marketplace
         });
 
         nft_contract::ext(snipe.contract_id)
@@ -300,6 +306,7 @@ impl Contract {
         price: U128,
         snipe: &Snipe,
         token_id: TokenId,
+        marketplace: String 
     ) -> Promise {
         let nft_contract_id = snipe.contract_id.clone();
 
@@ -315,7 +322,7 @@ impl Contract {
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_FOR_RESOLVE_BUY)
-                    .resolve_buy(marketplace_contract_id, snipe.snipe_id, price, token_id),
+                    .resolve_buy(marketplace_contract_id, snipe.snipe_id, price, token_id, marketplace),
             )
     }
 
@@ -325,6 +332,7 @@ impl Contract {
         price: U128,
         snipe: &Snipe,
         token_id: TokenId,
+        marketplace: String 
     ) -> Promise {
         let nft_contract_id = snipe.contract_id.clone();
 
@@ -338,7 +346,7 @@ impl Contract {
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_FOR_RESOLVE_BUY)
-                    .resolve_buy(marketplace_contract_id, snipe.snipe_id, price, token_id),
+                    .resolve_buy(marketplace_contract_id, snipe.snipe_id, price, token_id, marketplace),
             )
     }
 
@@ -368,15 +376,13 @@ impl Contract {
         )
     }
 
-    fn get_nft_marketplace_by_contract(
+    fn get_nft_marketplace_by_marketplace_value(
         &self,
-        marketplace_contract_id: AccountId,
+        marketplace_value: String,
     ) -> Option<NftMarketplace> {
-        match marketplace_contract_id.as_str() {
-            "paras-marketplace-v1.testnet" => Some(NftMarketplace::Paras),
-            "marketplace.paras.mainnet" => Some(NftMarketplace::Paras),
-            "market-v2-beta.mintspace2.testnet" => Some(NftMarketplace::Mintbase),
-            "market.mintbase1.near" => Some(NftMarketplace::Mintbase),
+        match marketplace_value.as_str() {
+            "paras" => Some(NftMarketplace::Paras),
+            "mintbase" => Some(NftMarketplace::Mintbase),
             _ => None,
         }
     }

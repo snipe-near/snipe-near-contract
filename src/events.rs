@@ -57,6 +57,7 @@ pub struct LogBuyToken {
     pub token_id: String,
     pub status: SnipeStatus,
     pub account_id: String,
+    pub marketplace: String
 }
 
 impl Display for NearEvent {
